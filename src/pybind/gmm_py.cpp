@@ -22,10 +22,26 @@ void binding_generator(py::module& m, std::string& typestr)
       .def_readwrite("reg_covar_", &GMMClass::reg_covar_)
       .def_readwrite("max_iter_", &GMMClass::max_iter_)
       .def_readwrite("support_size_", &GMMClass::support_size_)
-      .def_readwrite("weights_", &GMMClass::weights_)
-      .def_readwrite("means_", &GMMClass::means_)
-      .def_readwrite("covariances_", &GMMClass::covariances_)
-      .def_readwrite("precisions_cholesky_", &GMMClass::precisions_cholesky_)
+      .def_property("weights_", 
+          [](GMMClass& g) -> typename GMMClass::Vector& { return g.weights_; },
+          [](GMMClass& g, const typename GMMClass::Vector& v) { g.weights_ = v; },
+          py::return_value_policy::reference_internal)
+      .def_property("means_", 
+          [](GMMClass& g) -> typename GMMClass::MatrixXD& { return g.means_; },
+          [](GMMClass& g, const typename GMMClass::MatrixXD& m) { g.means_ = m; },
+          py::return_value_policy::reference_internal)
+      .def_property("covariances_", 
+          [](GMMClass& g) -> typename GMMClass::MatrixXC& { return g.covariances_; },
+          [](GMMClass& g, const typename GMMClass::MatrixXC& c) { g.covariances_ = c; },
+          py::return_value_policy::reference_internal)
+      .def_property("covariances_cholesky_", 
+          [](GMMClass& g) -> typename GMMClass::MatrixXC& { return g.covariances_cholesky_; },
+          [](GMMClass& g, const typename GMMClass::MatrixXC& c) { g.covariances_cholesky_ = c; },
+          py::return_value_policy::reference_internal)
+      .def_property("precisions_cholesky_", 
+          [](GMMClass& g) -> typename GMMClass::MatrixXC& { return g.precisions_cholesky_; },
+          [](GMMClass& g, const typename GMMClass::MatrixXC& p) { g.precisions_cholesky_ = p; },
+          py::return_value_policy::reference_internal)
       .def_readwrite("resp_", &GMMClass::resp_)
       .def("compute_log_det_cholesky", &GMMClass::computeLogDetCholesky)
       .def("compute_precision_cholesky", &GMMClass::computeCholesky)
