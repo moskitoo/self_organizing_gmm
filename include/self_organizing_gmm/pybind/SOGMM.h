@@ -38,10 +38,18 @@ namespace sogmm
                          "Number of components in this GMM.")
           .def_readwrite("support_size_", &Container::support_size_,
                          "Number of points in the support of this GMM.")
-          .def_readwrite("weights_", &Container::weights_, "All weights.")
-          .def_readwrite("means_", &Container::means_, "All means.")
-          .def_readwrite("covariances_", &Container::covariances_,
-                         "All covariances.")
+          .def_property("weights_", 
+               [](Container& container) -> typename Container::Vector& { return container.weights_; },
+               [](Container& container, const typename Container::Vector& w) { container.weights_ = w; },
+               py::return_value_policy::reference_internal)
+          .def_property("means_", 
+               [](Container& container) -> typename Container::MatrixXD& { return container.means_; },
+               [](Container& container, const typename Container::MatrixXD& m) { container.means_ = m; },
+               py::return_value_policy::reference_internal)
+          .def_property("covariances_", 
+               [](Container& container) -> typename Container::MatrixXC& { return container.covariances_; },
+               [](Container& container, const typename Container::MatrixXC& c) { container.covariances_ = c; },
+               py::return_value_policy::reference_internal)
           .def_readwrite("precisions_cholesky_", &Container::precisions_cholesky_,
                          "All cholesky decompositions of the precision matrices.")
           .def_readwrite("covariances_cholesky_", &Container::covariances_cholesky_,
