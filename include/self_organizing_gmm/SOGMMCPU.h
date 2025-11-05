@@ -41,6 +41,9 @@ namespace sogmm
       using MatrixDX = Eigen::Matrix<T, D, -1, Eigen::RowMajor>;
       using MatrixXC = Eigen::Matrix<T, -1, C, (C == 1 ? Eigen::ColMajor : Eigen::RowMajor)>;
 
+      Vector fusion_counts_;
+      Vector observation_counts_;
+      Vector last_displacements_;
       Vector weights_;
       MatrixXD means_;
       MatrixXC covariances_;
@@ -70,6 +73,9 @@ namespace sogmm
         this->covariances_ = MatrixXC::Zero(n_components_, C);
         this->covariances_cholesky_ = MatrixXC::Zero(n_components_, C);
         this->precisions_cholesky_ = MatrixXC::Zero(n_components_, C);
+        this->fusion_counts_ = Vector::Zero(n_components_);
+        this->observation_counts_ = Vector::Zero(n_components_);
+        this->last_displacements_ = Vector::Zero(n_components_);
 
         this->weights_ = that.weights_;
         if (this->support_size_ > 0 && this->weights_.sum() > 0.0)
@@ -81,6 +87,9 @@ namespace sogmm
         this->covariances_ = that.covariances_;
         this->precisions_cholesky_ = that.precisions_cholesky_;
         this->covariances_cholesky_ = that.covariances_cholesky_;
+        this->fusion_counts_ = that.fusion_counts_;
+        this->observation_counts_ = that.observation_counts_;
+        this->last_displacements_ = that.last_displacements_;
       }
 
       /// @brief Initialization with known number of components.
@@ -99,6 +108,9 @@ namespace sogmm
         covariances_ = MatrixXC::Zero(n_components_, C);
         covariances_cholesky_ = MatrixXC::Zero(n_components_, C);
         precisions_cholesky_ = MatrixXC::Zero(n_components_, C);
+        fusion_counts_ = Vector::Zero(n_components_);
+        observation_counts_ = Vector::Zero(n_components_);
+        last_displacements_ = Vector::Zero(n_components_);
       }
 
       /// @brief Initialization with known SOGMM parameters.
@@ -122,10 +134,53 @@ namespace sogmm
         covariances_ = MatrixXC::Zero(n_components_, C);
         precisions_cholesky_ = MatrixXC::Zero(n_components_, C);
         covariances_cholesky_ = MatrixXC::Zero(n_components_, C);
+        fusion_counts_ = Vector::Zero(n_components_);
+        observation_counts_ = Vector::Zero(n_components_);
+        last_displacements_ = Vector::Zero(n_components_);
 
         weights_ = weights;
         means_ = means;
         covariances_ = covariances;
+
+        updateCholesky(covariances);
+      }
+
+      /// @brief Initialization with known SOGMM parameters including additional tracking data.
+      /// @param weights Weights of the SOGMM. Should be normalized to 1.0.
+      /// @param means Means of the SOGMM.
+      /// @param covariances Covariances of the SOGMM.
+      /// @param support_size Number of points in the support of the SOGMM.
+      /// @param fusion_counts Fusion counts for each component.
+      /// @param observation_counts Observation counts for each component.
+      /// @param last_displacements Last displacements for each component.
+      SOGMM(const Vector &weights, const MatrixXD &means,
+            const MatrixXC &covariances, const uint32_t &support_size,
+            const Vector &fusion_counts, const Vector &observation_counts,
+            const Vector &last_displacements)
+      {
+        if (support_size <= 1)
+        {
+          throw std::runtime_error("The support size for this SOGMM is less than or equal to 1.");
+        }
+
+        support_size_ = support_size;
+        n_components_ = means.rows();
+
+        weights_ = Vector::Zero(n_components_);
+        means_ = MatrixXD::Zero(n_components_, D);
+        covariances_ = MatrixXC::Zero(n_components_, C);
+        precisions_cholesky_ = MatrixXC::Zero(n_components_, C);
+        covariances_cholesky_ = MatrixXC::Zero(n_components_, C);
+        fusion_counts_ = Vector::Zero(n_components_);
+        observation_counts_ = Vector::Zero(n_components_);
+        last_displacements_ = Vector::Zero(n_components_);
+
+        weights_ = weights;
+        means_ = means;
+        covariances_ = covariances;
+        fusion_counts_ = fusion_counts;
+        observation_counts_ = observation_counts;
+        last_displacements_ = last_displacements;
 
         updateCholesky(covariances);
       }
@@ -184,6 +239,9 @@ namespace sogmm
         MatrixXC new_covariances_cholesky = MatrixXC::Zero(
             covariances_cholesky_.rows() + that.covariances_cholesky_.rows(),
             covariances_cholesky_.cols());
+        Vector new_fusion_counts_ = Vector::Zero(fusion_counts_.rows() + that.fusion_counts_.rows());
+        Vector new_observation_counts_ = Vector::Zero(observation_counts_.rows() + that.observation_counts_.rows());
+        Vector new_last_displacements_ = Vector::Zero(last_displacements_.rows() + that.last_displacements_.rows());
 
         new_weights << weights_.array() * support_size_,
             that.weights_.array() * that.support_size_;
@@ -195,12 +253,18 @@ namespace sogmm
         new_precisions_cholesky << precisions_cholesky_, that.precisions_cholesky_;
         new_covariances_cholesky << covariances_cholesky_,
             that.covariances_cholesky_;
+        new_fusion_counts_ << fusion_counts_, that.fusion_counts_;
+        new_observation_counts_ << observation_counts_, that.observation_counts_;
+        new_last_displacements_ << last_displacements_, that.last_displacements_;
 
         weights_ = new_weights;
         means_ = new_means;
         covariances_ = new_covariances;
         precisions_cholesky_ = new_precisions_cholesky;
         covariances_cholesky_ = new_covariances_cholesky;
+        fusion_counts_ = new_fusion_counts_;
+        observation_counts_ = new_observation_counts_;
+        last_displacements_ = new_last_displacements_;
 
         support_size_ += that.support_size_;
         n_components_ += that.n_components_;
@@ -220,8 +284,12 @@ namespace sogmm
         }
         else
         {
-          return SOGMM(weights_(indices), means_(indices, Eigen::all), covariances_(indices, Eigen::all),
-                       support_size);
+          SOGMM submap = SOGMM(weights_(indices), means_(indices, Eigen::all), covariances_(indices, Eigen::all),
+                       support_size, fusion_counts_(indices), observation_counts_(indices), last_displacements_(indices));
+          // submap.fusion_counts_ = fusion_counts_(indices);
+          // submap.observation_counts_ = observation_counts_(indices);
+          // submap.last_displacements_ = last_displacements_(indices);
+          return submap;
         }
       }
     };
@@ -233,6 +301,9 @@ namespace sogmm
 
       sogmm3.weights_ = input.weights_;
       sogmm3.means_ = input.means_(Eigen::all, {0, 1, 2});
+      sogmm3.fusion_counts_ = input.fusion_counts_;
+      sogmm3.observation_counts_ = input.observation_counts_;
+      sogmm3.last_displacements_ = input.last_displacements_;
 
       using Matrix3 = typename SOGMM<T, 3>::MatrixDD;
       using Matrix4 = typename SOGMM<T, 4>::MatrixDD;

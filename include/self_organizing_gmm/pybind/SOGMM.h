@@ -54,6 +54,21 @@ namespace sogmm
                          "All cholesky decompositions of the precision matrices.")
           .def_readwrite("covariances_cholesky_", &Container::covariances_cholesky_,
                          "All cholesky decompositions of the covariance matrices.")
+          .def_property("fusion_counts_", 
+               [](Container& container) -> typename Container::Vector& { return container.fusion_counts_; },
+               [](Container& container, const typename Container::Vector& f) { container.fusion_counts_ = f; },
+               py::return_value_policy::reference_internal,
+               "Fusion counts for each Gaussian component.")
+          .def_property("observation_counts_", 
+               [](Container& container) -> typename Container::Vector& { return container.observation_counts_; },
+               [](Container& container, const typename Container::Vector& o) { container.observation_counts_ = o; },
+               py::return_value_policy::reference_internal,
+               "Observation counts for each Gaussian component.")
+          .def_property("last_displacements_", 
+               [](Container& container) -> typename Container::Vector& { return container.last_displacements_; },
+               [](Container& container, const typename Container::Vector& l) { container.last_displacements_ = l; },
+               py::return_value_policy::reference_internal,
+               "Last displacements for each Gaussian component.")
           .def("normalize_weights", &Container::normalizeWeights,
                "Normalize the weight vector.")
           .def("update_cholesky", &Container::updateCholesky,
@@ -65,7 +80,8 @@ namespace sogmm
           .def(py::pickle(
                    [](const Container &g)
                    {
-                     return py::make_tuple(g.weights_, g.means_, g.covariances_, g.support_size_);
+                     return py::make_tuple(g.weights_, g.means_, g.covariances_, g.support_size_, 
+                                          g.fusion_counts_, g.observation_counts_, g.last_displacements_);
                    },
                    [](py::tuple t)
                    {
@@ -73,6 +89,9 @@ namespace sogmm
                                              t[1].cast<typename Container::MatrixXD>(),
                                              t[2].cast<typename Container::MatrixXC>(),
                                              t[3].cast<uint32_t>());
+                     g.fusion_counts_ = t[4].cast<typename Container::Vector>();
+                     g.observation_counts_ = t[5].cast<typename Container::Vector>();
+                     g.last_displacements_ = t[6].cast<typename Container::Vector>();
                      return g;
                    }),
                "Serialization/Deserialization through pickling.");
