@@ -106,9 +106,14 @@ namespace sogmm
       py::class_<Learner>(m, pyclass_name.c_str(), "GMM parameters container on the CPU.",
                           py::dynamic_attr())
           .def(py::init(), "Default empty constructor.")
-          .def(py::init<const float &>(), "Initialize using the bandwidth parameter")
+          .def(py::init<const float &>(), "Initialize using the bandwidth parameter", py::arg("bandwidth"))
+          .def(py::init<const float &, const float &, const float &, const float &>(), "Initialize with bandwidth, tolerance, reg. covariance and max iteration.",
+               py::arg("bandwidth"), py::arg("tolerance"), py::arg("reg_covar"), py::arg("max_iter"))
           .def("fit", &Learner::fit)
-          .def("fit_em", &Learner::fit_em);
+          .def("fit_em", &Learner::fit_em)
+          .def_readwrite("tol", &Learner::tol_)
+          .def_readwrite("reg_covar", &Learner::reg_covar_)
+          .def_readwrite("max_iter", &Learner::max_iter_);
     }
 
     template <typename T>

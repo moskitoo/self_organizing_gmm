@@ -22,6 +22,10 @@ namespace sogmm
       using Matrix = typename Container::Matrix;
       using MatrixX4 = typename Container::MatrixXD;
 
+      float tol_;
+      float reg_covar_;
+      float max_iter_;
+
       SOGMMLearner()
       {
         ms_ = std::make_shared<MeanShift2D>();
@@ -34,6 +38,16 @@ namespace sogmm
         ms_ = std::make_shared<MeanShift2D>(bandwidth);
         kinit_ = std::make_shared<KInit<T, 4>>();
         em_ = std::make_shared<EM<T, 4>>();
+      }
+
+      SOGMMLearner(const float &bandwidth, const float &tol, const float &reg_covar, const float &max_iter)
+      {
+        tol_ = tol;
+        reg_covar_ = reg_covar;
+        max_iter_ = max_iter;
+        ms_ = std::make_shared<MeanShift2D>(bandwidth);
+        kinit_ = std::make_shared<KInit<T, 4>>();
+        em_ = std::make_shared<EM<T, 4>>(tol, reg_covar, max_iter);
       }
 
       void fit(const MatrixX2 &Y, const MatrixX4 &X, Container &sogmm)
