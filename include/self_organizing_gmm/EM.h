@@ -39,9 +39,6 @@ namespace sogmm
       using MatrixDX = typename Container::MatrixDX;
       using MatrixXC = typename Container::MatrixXC;
 
-      // EM() : EM(1e-3, 1e-6, 100)
-      // {
-      // }
 
       EM(T tol = 1e-3, T reg_covar = 1e-6, unsigned int max_iter = 100)
       {
