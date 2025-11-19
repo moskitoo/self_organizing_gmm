@@ -44,6 +44,8 @@ namespace sogmm
       Vector fusion_counts_;
       Vector observation_counts_;
       Vector last_displacements_;
+      Vector uncertainty_;
+      Vector freeze_;
       Vector weights_;
       MatrixXD means_;
       MatrixXC covariances_;
@@ -76,6 +78,8 @@ namespace sogmm
         this->fusion_counts_ = Vector::Zero(n_components_);
         this->observation_counts_ = Vector::Zero(n_components_);
         this->last_displacements_ = Vector::Zero(n_components_);
+        this->uncertainty_ = Vector::Ones(n_components_);
+        this->freeze_ = Vector::Zero(n_components_);
 
         this->weights_ = that.weights_;
         if (this->support_size_ > 0 && this->weights_.sum() > 0.0)
@@ -90,6 +94,8 @@ namespace sogmm
         this->fusion_counts_ = that.fusion_counts_;
         this->observation_counts_ = that.observation_counts_;
         this->last_displacements_ = that.last_displacements_;
+        this->uncertainty_ = that.uncertainty_;
+        this->freeze_ = that.freeze_;
       }
 
       /// @brief Initialization with known number of components.
@@ -111,6 +117,8 @@ namespace sogmm
         fusion_counts_ = Vector::Zero(n_components_);
         observation_counts_ = Vector::Zero(n_components_);
         last_displacements_ = Vector::Zero(n_components_);
+        uncertainty_ = Vector::Ones(n_components_);
+        freeze_ = Vector::Zero(n_components_);
       }
 
       /// @brief Initialization with known SOGMM parameters.
@@ -137,6 +145,8 @@ namespace sogmm
         fusion_counts_ = Vector::Zero(n_components_);
         observation_counts_ = Vector::Zero(n_components_);
         last_displacements_ = Vector::Zero(n_components_);
+        uncertainty_ = Vector::Ones(n_components_);
+        freeze_ = Vector::Zero(n_components_);
 
         weights_ = weights;
         means_ = means;
@@ -156,7 +166,8 @@ namespace sogmm
       SOGMM(const Vector &weights, const MatrixXD &means,
             const MatrixXC &covariances, const uint32_t &support_size,
             const Vector &fusion_counts, const Vector &observation_counts,
-            const Vector &last_displacements)
+            const Vector &last_displacements, const Vector &uncertainty,
+            const Vector &freeze)
       {
         if (support_size <= 1)
         {
@@ -174,6 +185,8 @@ namespace sogmm
         fusion_counts_ = Vector::Zero(n_components_);
         observation_counts_ = Vector::Zero(n_components_);
         last_displacements_ = Vector::Zero(n_components_);
+        uncertainty_ = Vector::Ones(n_components_);
+        freeze_ = Vector::Zero(n_components_);
 
         weights_ = weights;
         means_ = means;
@@ -181,6 +194,8 @@ namespace sogmm
         fusion_counts_ = fusion_counts;
         observation_counts_ = observation_counts;
         last_displacements_ = last_displacements;
+        uncertainty_ = uncertainty;
+        freeze_ = freeze;
 
         updateCholesky(covariances);
       }
@@ -242,6 +257,8 @@ namespace sogmm
         Vector new_fusion_counts_ = Vector::Zero(fusion_counts_.rows() + that.fusion_counts_.rows());
         Vector new_observation_counts_ = Vector::Zero(observation_counts_.rows() + that.observation_counts_.rows());
         Vector new_last_displacements_ = Vector::Zero(last_displacements_.rows() + that.last_displacements_.rows());
+        Vector new_uncertainty_ = Vector::Ones(uncertainty_.rows() + that.uncertainty_.rows());
+        Vector new_freeze_ = Vector::Zero(freeze_.rows() + that.freeze_.rows());
 
         new_weights << weights_.array() * support_size_,
             that.weights_.array() * that.support_size_;
@@ -256,6 +273,8 @@ namespace sogmm
         new_fusion_counts_ << fusion_counts_, that.fusion_counts_;
         new_observation_counts_ << observation_counts_, that.observation_counts_;
         new_last_displacements_ << last_displacements_, that.last_displacements_;
+        new_uncertainty_ << uncertainty_, that.uncertainty_;
+        new_freeze_ << freeze_, that.freeze_;
 
         weights_ = new_weights;
         means_ = new_means;
@@ -265,6 +284,8 @@ namespace sogmm
         fusion_counts_ = new_fusion_counts_;
         observation_counts_ = new_observation_counts_;
         last_displacements_ = new_last_displacements_;
+        uncertainty_ = new_uncertainty_;
+        freeze_ = new_freeze_;
 
         support_size_ += that.support_size_;
         n_components_ += that.n_components_;
@@ -285,10 +306,7 @@ namespace sogmm
         else
         {
           SOGMM submap = SOGMM(weights_(indices), means_(indices, Eigen::all), covariances_(indices, Eigen::all),
-                       support_size, fusion_counts_(indices), observation_counts_(indices), last_displacements_(indices));
-          // submap.fusion_counts_ = fusion_counts_(indices);
-          // submap.observation_counts_ = observation_counts_(indices);
-          // submap.last_displacements_ = last_displacements_(indices);
+                       support_size, fusion_counts_(indices), observation_counts_(indices), last_displacements_(indices), uncertainty_(indices), freeze_(indices));
           return submap;
         }
       }
@@ -304,6 +322,8 @@ namespace sogmm
       sogmm3.fusion_counts_ = input.fusion_counts_;
       sogmm3.observation_counts_ = input.observation_counts_;
       sogmm3.last_displacements_ = input.last_displacements_;
+      sogmm3.uncertainty_ = input.uncertainty_;
+      sogmm3.freeze_ = input.freeze_;
 
       using Matrix3 = typename SOGMM<T, 3>::MatrixDD;
       using Matrix4 = typename SOGMM<T, 4>::MatrixDD;
